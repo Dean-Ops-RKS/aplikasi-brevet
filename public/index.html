@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Pengajuan Brevet & Satyalancana</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /*
+          BACKGROUND HALAMAN — pakai foto kamu sendiri
+          1. Taruh file fotonya di folder 'public' project ini (folder yang sama
+             tempat index.html & admin.html berada), misal: public/background.jpg
+          2. Ganti "background.jpg" di baris "background-image" bawah ini
+             dengan nama file fotomu.
+          3. Lapisan gelap (overlay) di bawah foto sengaja dipasang biar teks
+             & kartu putih di atasnya tetap gampang dibaca. Atur tingkat
+             kegelapannya dengan mengubah angka opacity 0.55 (0 = transparan,
+             1 = hitam pekat).
+        */
+        body {
+            background-color: #0f172a;
+            background-image:
+                linear-gradient(rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.55)),
+                url('backround.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+    </style>
+</head>
+<body class="p-6 text-slate-800">
+    <div class="max-w-4xl mx-auto space-y-8">
+        <div class="flex justify-between items-center gap-4 bg-white/95 backdrop-blur rounded-2xl border border-slate-200 shadow-lg px-5 py-4">
+            <div class="flex items-center gap-4">
+                <!--
+                  SLOT 2 LOGO DI KIRI ATAS
+                  Ganti "src" di bawah dengan URL atau path logo kamu sendiri,
+                  contoh: src="logo-satuan.png" (taruh file logo di folder 'public').
+                -->
+                <img src="TNI_AL.png" alt="Logo 1" class="w-14 h-14 object-contain shrink-0">
+                <img src="SIBERTNI.jpg" alt="Logo 2" class="w-14 h-14 object-contain shrink-0">
+                <div class="border-l border-slate-200 pl-4">
+                    <h1 class="text-2xl font-bold text-slate-800">Sistem Verifikasi Kualifikasi &amp; Tanda Kehormatan TNI</h1>
+                    <p class="text-xs text-slate-400 mt-1">Portal Pengajuan Brevet, Satyalancana, dan Pin Kualifikasi</p>
+                </div>
+            </div>
+            <a href="admin.html" class="text-sm bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 font-semibold transition shrink-0">Login Admin</a>
+        </div>
+
+        <!-- PESAN STATUS KONEKSI -->
+        <div id="connError" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold p-4 rounded-xl"></div>
+
+        <!-- FORM CUSTOMER -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-bold mb-4 text-blue-700 border-b border-slate-200 pb-3">Formulir Pengajuan Baru</h2>
+            <form id="uploadForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600">Username Roblox</label>
+                        <input type="text" id="custNama" class="w-full p-2.5 border border-slate-300 rounded-lg mt-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600">Divisi</label>
+                        <select id="custDivisi" class="w-full p-2 border rounded mt-1 bg-gray-50 font-medium text-gray-800 focus:outline-none focus:border-blue-500" required>
+                            <option value="" disabled selected>-- Pilih Divisi --</option>
+                            
+                            <optgroup label="TNI AL">
+                                <option value="POMAL">Polisi Militer Angkatan Laut (POMAL)</option>
+                                <option value="Marinir">Korps Marinir</option>
+                                <option value="Kopaska">Komando Pasukan Katak (Kopaska)</option>
+                                <option value="Koarmada">Koarmada</option>
+                            </optgroup>
+                            
+                            <optgroup label="TNI AD">
+                                <option value="Kostrad">Kostrad</option>
+                                <option value="Kopassus">Komando Pasukan Khusus (Kopassus)</option>
+                                <option value="POMAD">Polisi Militer Angkatan Darat (POMAD)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600">Pangkat</label>
+                        <select id="custPangkat" class="w-full p-2.5 border border-slate-300 rounded-lg mt-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                            <option value="" disabled selected>-- Pilih Pangkat --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-medium text-slate-600">Brevet / Satya Lencana / Pin yang Diajukan</label>
+                        <button type="button" onclick="tambahBrevetRow()" class="flex items-center gap-1 bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-700 cursor-pointer transition">
+                            <span class="text-base leading-none">+</span> Tambah Brevet
+                        </button>
+                    </div>
+
+                    <div id="brevetRows" class="space-y-3">
+                        <!-- baris brevet akan ditambahkan di sini oleh JS, mulai dengan 1 baris default -->
+                    </div>
+                </div>
+
+                <div class="text-right pt-2 border-t border-slate-200 space-y-2">
+                    <button type="submit" id="submitBtn" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 cursor-pointer transition disabled:opacity-60">Kirim Dokumen Pengajuan</button>
+                    <p class="text-xs text-slate-400">*Jika ada kesalahan data bisa di konfirmasi ke Discord Logistik</p>
+                </div>
+            </form>
+        </div>
+
+        <!-- GENERATOR KARTU -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-bold mb-4 text-slate-700 border-b border-slate-200 pb-3">Verifikasi Kartu Kualifikasi </h2>
+            <div class="flex gap-3 mb-6">
+                <input type="text" id="searchNama" placeholder="Masukkan Nama Lengkap Anggota" class="p-2.5 border border-slate-300 rounded-lg w-full md:w-1/3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <button onclick="bikinKartu()" id="cariKartuBtn" class="bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-900 font-semibold cursor-pointer transition disabled:opacity-60">Tampilkan Kartu</button>
+            </div>
+
+            <div id="kartuDigital" class="hidden max-w-2xl mx-auto">
+                <div class="bg-sky-400 rounded-3xl shadow-xl p-7 relative overflow-hidden">
+                    <!-- dekorasi lengkung halus di background -->
+                    <div class="absolute -right-10 -bottom-16 w-56 h-56 rounded-full bg-sky-300/40"></div>
+                    <div class="absolute -right-24 -top-20 w-48 h-48 rounded-full bg-sky-300/30"></div>
+
+                    <div class="relative">
+                        <!-- HEADER: LAMBANG + JUDUL -->
+                        <div class="flex items-start gap-4">
+                            <div class="w-16 h-16 rounded-full bg-sky-50 border-2 border-yellow-500 flex items-center justify-center shrink-0 shadow overflow-hidden">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/4/48/Insignia_of_the_Indonesian_National_Armed_Forces.svg" alt="Lambang TNI" class="w-11 h-11 object-contain">
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-slate-900 leading-tight">TENTARA NASIONAL INDONESIA</h3>
+                                <p class="text-base text-slate-800 font-medium">Kartu Kewenangan Atribut</p>
+                            </div>
+                        </div>
+
+                        <!-- DATA ANGGOTA -->
+                        <div class="mt-6 space-y-1.5 text-slate-900">
+                            <div class="flex">
+                                <span class="w-24 shrink-0 font-medium">Username</span>
+                                <span class="mr-2">:</span>
+                                <span id="cardNama" class="font-bold uppercase">-</span>
+                            </div>
+                            <div class="flex">
+                                <span class="w-24 shrink-0 font-medium">Pangkat</span>
+                                <span class="mr-2">:</span>
+                                <span id="cardPangkat" class="font-semibold">-</span>
+                            </div>
+                            <div class="flex">
+                                <span class="w-24 shrink-0 font-medium">Divisi</span>
+                                <span class="mr-2">:</span>
+                                <span id="cardDivisi" class="font-semibold">-</span>
+                            </div>
+                        </div>
+
+                        <!-- DAFTAR KUALIFIKASI TERVERIFIKASI -->
+                        <div class="mt-6">
+                            <p class="text-sm font-bold text-slate-900 uppercase tracking-wide mb-2">Kualifikasi &amp; Atribut Terverifikasi</p>
+                            <ul id="cardBrevets" class="space-y-1 text-sm text-slate-900"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ======================================================================
+        // KONFIGURASI: Alamat backend Express kamu.
+        // - Kalau index.html ini disajikan LANGSUNG oleh server Express yang sama
+        //   (misal via express.static di server.js), biarkan '' (kosong).
+        // - Kalau di-hosting terpisah (misal frontend di Netlify, backend di
+        //   Render/Railway/VPS), isi dengan URL backend, contoh:
+        //   'https://api-brevet.example.com'
+        // ======================================================================
+        const API_BASE_URL = 'https://rilogistikmabestnirblx.netlify.app/';
+
+        // ---------- Daftar opsi brevet / satyalencana / pin (dipakai untuk generate <select>) ----------
+        const OPSI_BREVET = {
+            "BREVET KUALIFIKASI UTAMA": [
+                "Brevet Komando", "Brevet Para Dasar", "Brevet Free Fall", "Brevet Kualifikasi Raider",
+                "Brevet Sat Gultor 81", "Brevet Intai Amfibi", "Brevet Dikko Marinir", "Brevet Paska Kopaska",
+                "Brevet Bravo 90 Pasgat",
+            ],
+            "BREVET KEMAHIRAN & KETANGKASAN": [
+                "Brevet Menembak Sniper", "Brevet Menembak Tepat", "Brevet Selam Tempur", "Brevet Scuba Diver",
+                "Brevet Pandu Udara Pathfinder", "Brevet Pelacak K9", "Brevet Beladiri Militer","Brevet Sea Survival"
+            ],
+            "BREVET PENERBANGAN & KELAUTAN": [
+                "Brevet Penerbang Utama TNI", "Brevet Penerbang Kelas I", "Brevet Penerbang Kelas II",
+                "Brevet Penerbang Kelas III", "Brevet Penerbang Helikopter", "Brevet Navigator",
+                "Brevet Kapal Permukaan", "Brevet Hiu Kencana Kapal Selam"
+            ],
+            "BREVET TEKNIS & KEAHLIAN INSTANSI": [
+                "Brevet Artileri Medan", "Brevet Artileri Pertahanan Udara", "Brevet Zeni Konstruksi",
+                "Brevet Zeni Tempur", "Brevet Jihandak", "Brevet Perhubungan", "Brevet Peralatan",
+                "Brevet Pembekalan Angkutan","Brevet Kepelatihan Kodiklatal"
+            ],
+            "BREVET INTELIJEN, HUKUM & STAF": [
+                "Brevet Intelijen Tempur", "Brevet Intelijen Analis", "Brevet Sandiyudha", "Brevet Hukum Militer",
+                "Brevet Polisi Militer", "Brevet Kesehatan Dokter Militer", "Brevet Staf Militer"
+            ],
+            "SATYA LENCANA KESETIAAN & DHARMA": [
+                "Satya Lencana Kesetiaan 6 Bulan", "Satya Lencana Kesetiaan 1 Tahun",
+                "Satya Lencana Kesetiaan 24 Tahun", "Satya Lencana Kesetiaan 32 Tahun",
+                "Satya Lencana Dharma", "Satya Lencana Bhakti"
+            ],
+            "SATYA LENCANA OPERASI & PENUGASAN": [
+                "Satya Lencana G.O.M. IX Raksaka Dharma", "Satya Lencana Dharma Nusa", "Satya Lencana Wira Dharma",
+                "Satya Lencana Wira Nusa", "Satya Lencana Wira Siaga", "Satya Lencana Kanti Buana",
+                "Satya Lencana Santi Dharma"
+            ],
+            "SATYA LENCANA PRESTASI & PENDIDIKAN": [
+                "Satya Lencana Karya Satya", "Satya Lencana Wira Karya", "Satya Lencana Dwidya Sistha",
+                "Satya Lencana Kebhaktian Sosial"
+            ],
+            "PIN KUALIFIKASI KEAHLIAN": [
+                "Pin Alumni Sesko TNI", "Pin Integritas",
+                "Pin Paspampres", "Pin Gadjah Mada Puspomad", "Pin Intelijen Strategis",
+                "Pin Penyidik Polisi Militer", "Pin Instruktur Militer Utama", "Pin Kualifikasi Lemhannas",
+                "Pin Kemhan RI", "Pin Mabes TNI"
+            ]
+        };
+
+        // ---------- Daftar kepangkatan TNI AD & TNI AL (dikelompokkan per golongan) ----------
+        const OPSI_PANGKAT = {
+            "TNI AD — Perwira Tinggi": [
+                "Jenderal", "Letnan Jenderal", "Mayor Jenderal", "Brigadir Jenderal"
+            ],
+            "TNI AD — Perwira Menengah": [
+                "Kolonel", "Letnan Kolonel", "Mayor"
+            ],
+            "TNI AD — Perwira Pertama": [
+                "Kapten", "Letnan Satu", "Letnan Dua"
+            ],
+            "TNI AD — Bintara Tinggi": [
+                "Pembantu Letnan Satu (Peltu)", "Pembantu Letnan Dua (Pelda)"
+            ],
+            "TNI AD — Bintara": [
+                "Sersan Mayor", "Sersan Kepala", "Sersan Satu", "Sersan Dua"
+            ],
+            "TNI AD — Tamtama Kepala": [
+                "Kopral Kepala", "Kopral Satu", "Kopral Dua"
+            ],
+            "TNI AD — Tamtama": [
+                "Prajurit Kepala", "Prajurit Satu", "Prajurit Dua"
+            ],
+            "TNI AL — Perwira Tinggi": [
+                "Laksamana TNI", "Laksamana Madya TNI", "Laksamana Muda TNI", "Laksamana Pertama TNI"
+            ],
+            "TNI AL — Perwira Menengah": [
+                "Kolonel Laut", "Letnan Kolonel Laut", "Mayor Laut"
+            ],
+            "TNI AL — Perwira Pertama": [
+                "Kapten Laut", "Letnan Satu Laut", "Letnan Dua Laut"
+            ],
+            "TNI AL — Bintara Tinggi": [
+                "Pembantu Letnan Satu Laut (Peltu)", "Pembantu Letnan Dua Laut (Pelda)"
+            ],
+            "TNI AL — Bintara": [
+                "Sersan Mayor Laut", "Sersan Kepala Laut", "Sersan Satu Laut", "Sersan Dua Laut"
+            ],
+            "TNI AL — Tamtama Kepala": [
+                "Kopral Kepala Laut", "Kopral Satu Laut", "Kopral Dua Laut"
+            ],
+            "TNI AL — Tamtama": [
+                "Kelasi Kepala", "Kelasi Satu", "Kelasi Dua"
+            ]
+        };
+
+        function isiDropdownPangkat() {
+            const select = document.getElementById('custPangkat');
+            let html = '<option value="" disabled selected>-- Pilih Pangkat --</option>';
+            for (const grup in OPSI_PANGKAT) {
+                html += `<optgroup label="${grup}">`;
+                OPSI_PANGKAT[grup].forEach(item => {
+                    html += `<option value="${item}">${item}</option>`;
+                });
+                html += `</optgroup>`;
+            }
+            select.innerHTML = html;
+        }
+        isiDropdownPangkat();
+
+        let rowCounter = 0;
+
+        function buatOptionsHTML() {
+            let html = '<option value="" disabled selected>-- Pilih Brevet / Satya Lencana / Pin --</option>';
+            for (const grup in OPSI_BREVET) {
+                html += `<optgroup label="${grup}">`;
+                OPSI_BREVET[grup].forEach(item => {
+                    html += `<option value="${item}">${item}</option>`;
+                });
+                html += `</optgroup>`;
+            }
+            return html;
+        }
+
+        function tambahBrevetRow() {
+            rowCounter++;
+            const rowId = `row-${rowCounter}`;
+            const wrapper = document.createElement('div');
+            wrapper.id = rowId;
+            wrapper.className = "bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3";
+            wrapper.innerHTML = `
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" class="brevetLuarNegeri w-4 h-4 accent-blue-600" onchange="toggleBrevetLuarNegeri('${rowId}')">
+                    <span class="text-xs font-medium text-slate-600">Brevet Luar Negeri (ketik manual nama brevetnya)</span>
+                </label>
+                <div class="flex flex-col md:flex-row gap-3 items-start md:items-end">
+                    <div class="flex-1 w-full brevetSelectWrap">
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Pilih Atribut (Brevet Indonesia)</label>
+                        <select class="brevetSelect w-full p-2 border border-slate-300 rounded-lg bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                            ${buatOptionsHTML()}
+                        </select>
+                    </div>
+                    <div class="flex-1 w-full brevetManualWrap hidden">
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Nama Brevet Luar Negeri (Ketik Manual)</label>
+                        <input type="text" class="brevetManual w-full p-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Contoh: Brevet Airborne US Army">
+                    </div>
+                    <div class="flex-1 w-full">
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Dokumen Bukti (Foto)</label>
+                        <input type="file" class="brevetFile w-full p-2 border border-slate-300 rounded-lg bg-white" accept="image/*" required>
+                    </div>
+                    <button type="button" onclick="hapusBrevetRow('${rowId}')" class="shrink-0 bg-rose-600 text-white text-sm font-semibold px-3 py-2 rounded-lg hover:bg-rose-700 cursor-pointer transition">
+                        Hapus
+                    </button>
+                </div>
+            `;
+            document.getElementById('brevetRows').appendChild(wrapper);
+        }
+
+        function toggleBrevetLuarNegeri(rowId) {
+            const row = document.getElementById(rowId);
+            const isLuarNegeri = row.querySelector('.brevetLuarNegeri').checked;
+            const selectWrap = row.querySelector('.brevetSelectWrap');
+            const manualWrap = row.querySelector('.brevetManualWrap');
+            const select = row.querySelector('.brevetSelect');
+            const manual = row.querySelector('.brevetManual');
+
+            if (isLuarNegeri) {
+                selectWrap.classList.add('hidden');
+                manualWrap.classList.remove('hidden');
+                select.required = false;
+                select.value = '';
+                manual.required = true;
+            } else {
+                selectWrap.classList.remove('hidden');
+                manualWrap.classList.add('hidden');
+                select.required = true;
+                manual.required = false;
+                manual.value = '';
+            }
+        }
+
+        function hapusBrevetRow(rowId) {
+            const el = document.getElementById(rowId);
+            const semuaRow = document.querySelectorAll('#brevetRows > div');
+            if (semuaRow.length <= 1) {
+                alert('Minimal harus ada 1 baris brevet.');
+                return;
+            }
+            if (el) el.remove();
+        }
+
+        // baris pertama dibuat otomatis saat halaman dimuat
+        tambahBrevetRow();
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function tampilkanErrorKoneksi(pesan) {
+            const box = document.getElementById('connError');
+            box.innerText = pesan;
+            box.classList.remove('hidden');
+        }
+
+        function sembunyikanErrorKoneksi() {
+            document.getElementById('connError').classList.add('hidden');
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            sembunyikanErrorKoneksi();
+
+            const rows = document.querySelectorAll('#brevetRows > div');
+            const brevetList = [];
+
+            for (const row of rows) {
+                const isLuarNegeri = row.querySelector('.brevetLuarNegeri').checked;
+                const fileInput = row.querySelector('.brevetFile');
+                const file = fileInput.files[0];
+
+                let namaBrevet = '';
+                if (isLuarNegeri) {
+                    const manual = row.querySelector('.brevetManual');
+                    namaBrevet = manual.value.trim();
+                    if (!namaBrevet) return alert('Ketik nama brevet luar negeri untuk setiap baris yang dipilih manual');
+                } else {
+                    const select = row.querySelector('.brevetSelect');
+                    if (!select.value) return alert('Pilih atribut untuk setiap baris brevet');
+                    namaBrevet = select.value;
+                }
+
+                if (!file) return alert('Unggah foto bukti untuk setiap baris brevet');
+
+                const base64File = await fileToBase64(file);
+                brevetList.push({
+                    brevet: namaBrevet,
+                    file_sertifikat: base64File
+                });
+            }
+
+            const nama = document.getElementById('custNama').value;
+            const divisi = document.getElementById('custDivisi').value;
+            const pangkat = document.getElementById('custPangkat').value;
+
+            const ringkasanBrevet = brevetList.map(b => `- ${b.brevet}`).join('\n');
+            const konfirmasi = confirm(
+                `Mohon periksa kembali data pengajuan:\n\n` +
+                `Username Roblox: ${nama}\n` +
+                `Divisi: ${divisi}\n` +
+                `Pangkat: ${pangkat}\n` +
+                `Brevet/Satya Lencana/Pin yang diajukan:\n${ringkasanBrevet}\n\n` +
+                `Apakah data di atas sudah benar?`
+            );
+            if (!konfirmasi) return;
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Mengirim...';
+
+            try {
+                // Backend menyimpan satu baris per item brevet, jadi kirim satu per satu ke /api/upload
+                for (const item of brevetList) {
+                    const res = await fetch(`${API_BASE_URL}/api/upload`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            nama,
+                            divisi,
+                            pangkat,
+                            brevet: item.brevet,
+                            file_sertifikat: item.file_sertifikat
+                        })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Gagal mengirim salah satu item brevet');
+                }
+
+                alert('Data pengajuan berhasil dikirim dan tersimpan di database. Silakan tunggu verifikasi admin.');
+                document.getElementById('uploadForm').reset();
+                document.getElementById('brevetRows').innerHTML = '';
+                tambahBrevetRow();
+            } catch (err) {
+                tampilkanErrorKoneksi('Gagal mengirim pengajuan: ' + err.message + '. Pastikan server backend sedang berjalan dan bisa diakses.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Kirim Dokumen Pengajuan';
+            }
+        });
+
+        async function bikinKartu() {
+            const namaInput = document.getElementById('searchNama').value.trim();
+            if (!namaInput) return alert('Nama harus diisi');
+
+            sembunyikanErrorKoneksi();
+            const cariBtn = document.getElementById('cariKartuBtn');
+            cariBtn.disabled = true;
+            cariBtn.innerText = 'Mencari...';
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/kartu/${encodeURIComponent(namaInput)}`);
+                const data = await res.json();
+
+                if (!res.ok || data.error) {
+                    alert('Tidak ditemukan kualifikasi atau tanda kehormatan yang disetujui untuk nama ini');
+                    document.getElementById('kartuDigital').classList.add('hidden');
+                    return;
+                }
+
+                document.getElementById('cardNama').innerText = data.nama;
+                document.getElementById('cardDivisi').innerText = data.divisi || '-';
+                document.getElementById('cardPangkat').innerText = data.pangkat;
+
+                const listBrevet = document.getElementById('cardBrevets');
+                listBrevet.innerHTML = '';
+                if ((data.brevets || []).length === 0) {
+                    listBrevet.innerHTML = '<li class="text-slate-700 italic">Belum ada kualifikasi terverifikasi.</li>';
+                } else {
+                    (data.brevets || []).forEach(b => {
+                        listBrevet.innerHTML += `
+                            <li class="flex items-start gap-2">
+                                <span>${b}</span>
+                            </li>`;
+                    });
+                }
+
+                document.getElementById('kartuDigital').classList.remove('hidden');
+            } catch (err) {
+                tampilkanErrorKoneksi('Gagal menghubungi server: ' + err.message + '. Pastikan server backend sedang berjalan dan bisa diakses.');
+            } finally {
+                cariBtn.disabled = false;
+                cariBtn.innerText = 'Tampilkan Kartu';
+            }
+        }
+    </script>
+</body>
+</html>

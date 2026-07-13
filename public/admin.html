@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Kontrol Validasi Brevet</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+
+    <!-- FORM LOGIN ADMIN -->
+    <div id="loginSection" class="max-w-md mx-auto my-24 bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+        <div class="text-center mb-6">
+            <div class="w-12 h-12 rounded-lg bg-blue-600 mx-auto mb-3 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <h2 class="text-lg font-bold text-slate-800">Autentikasi Administrator</h2>
+            <p class="text-xs text-slate-400 mt-1">Masuk untuk mengelola panel validasi brevet</p>
+        </div>
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold text-slate-600 mb-1">Username</label>
+                <input type="text" id="username" class="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-600 mb-1">Password</label>
+                <input type="password" id="password" class="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+            </div>
+            <p id="loginError" class="hidden text-xs text-rose-600 font-semibold text-center"></p>
+            <button type="submit" id="loginBtn" class="w-full bg-blue-600 text-white p-2.5 rounded-lg font-semibold hover:bg-blue-700 transition cursor-pointer disabled:opacity-60">Masuk Sistem</button>
+        </form>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="adminDashboard" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+
+        <!-- HEADER PANEL -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">Panel Validasi &amp; Kontrol Brevet</h1>
+                <p class="text-sm text-slate-400 mt-1">Sistem Manajemen Kelayakan dan Pengesahan Kualifikasi Anggota</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="ambilDataSistem()" class="bg-white hover:bg-slate-100 text-slate-600 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 transition cursor-pointer flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    Muat Ulang
+                </button>
+                <button onclick="location.reload()" class="bg-white hover:bg-slate-100 text-slate-600 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 transition cursor-pointer flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Keluar Sistem
+                </button>
+            </div>
+        </div>
+
+        <!-- PESAN ERROR KONEKSI -->
+        <div id="connError" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold p-4 rounded-xl"></div>
+
+        <!-- FITUR PENCARIAN & FILTER -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div class="w-full md:w-1/2">
+                <label class="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">Pencarian Nama / Divisi / Brevet</label>
+                <input type="text" id="searchAdmin" oninput="filterData()" placeholder="Ketik nama, divisi, atau nama brevet untuk mencari..." class="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="flex gap-6 w-full md:w-auto justify-end">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-blue-600" id="totalSubmisi">0</div>
+                    <div class="text-xs text-slate-400 font-medium">Total Anggota</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-blue-600" id="totalData">0</div>
+                    <div class="text-xs text-slate-400 font-medium">Total Item Brevet</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TIGA KOLOM STATUS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- PENDING -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="bg-amber-50 border-b border-amber-100 p-3.5 flex items-center justify-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <h3 class="font-bold text-amber-700 text-center text-xs tracking-widest uppercase">Antrean Verifikasi (Pending)</h3>
+                </div>
+                <div id="pending-list" class="p-4 space-y-3 min-h-[400px] max-h-[70vh] overflow-y-auto"></div>
+            </div>
+            <!-- APPROVED -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="bg-emerald-50 border-b border-emerald-100 p-3.5 flex items-center justify-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <h3 class="font-bold text-emerald-700 text-center text-xs tracking-widest uppercase">Disetujui / Netap (Approved)</h3>
+                </div>
+                <div id="approved-list" class="p-4 space-y-3 min-h-[400px] max-h-[70vh] overflow-y-auto"></div>
+            </div>
+            <!-- REJECTED -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="bg-rose-50 border-b border-rose-100 p-3.5 flex items-center justify-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <h3 class="font-bold text-rose-700 text-center text-xs tracking-widest uppercase">Ditolak / Dilepas (Rejected)</h3>
+                </div>
+                <div id="rejected-list" class="p-4 space-y-3 min-h-[400px] max-h-[70vh] overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL POPUP PREVIEW BERKAS -->
+    <div id="photoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white border border-slate-200 p-5 rounded-xl max-w-2xl w-full text-center space-y-4 shadow-2xl">
+            <h4 class="font-bold text-slate-800 text-base uppercase tracking-wider border-b border-slate-200 pb-3">Pratinjau Dokumen Kualifikasi</h4>
+            <div class="overflow-auto max-h-[65vh] flex justify-center bg-slate-50 p-2 rounded-lg border border-slate-200">
+                <img id="modalImg" src="" alt="Berkas Pengajuan" class="max-w-full h-auto rounded">
+            </div>
+            <div class="flex justify-end">
+                <button onclick="tutupModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2 rounded-lg text-sm font-semibold border border-slate-300 transition cursor-pointer">Tutup Jendela</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI HAPUS -->
+    <div id="deleteModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white border border-slate-200 p-6 rounded-xl max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <div class="w-12 h-12 rounded-full bg-rose-50 mx-auto flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </div>
+            <div>
+                <h4 class="font-bold text-slate-800 text-base">Hapus Data Ini?</h4>
+                <p class="text-sm text-slate-400 mt-1">Tindakan ini tidak dapat dibatalkan. Data akan dihapus permanen dari database.</p>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="tutupModalHapus()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-semibold border border-slate-300 transition cursor-pointer">Batal</button>
+                <button onclick="konfirmasiHapus()" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-lg text-sm font-semibold transition cursor-pointer">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ======================================================================
+        // KONFIGURASI: Alamat backend Express kamu.
+        // - Kalau admin.html ini disajikan LANGSUNG oleh server Express yang sama
+        //   (misal lewat route /admin di server.js), biarkan '' (kosong) — otomatis 1 origin.
+        // - Kalau admin.html di-hosting terpisah (misal di Netlify) sementara
+        //   backend Express ada di server lain (Render/Railway/VPS dsb), isi
+        //   dengan URL backend kamu, contoh: 'https://api-brevet.example.com'
+        // ======================================================================
+        const API_BASE_URL = 'https://rilogistikmabestnirblx.netlify.app/';
+
+        let listSertifikatGlobal = []; // data flat dari server: [{id, nama, divisi, pangkat, brevet, file_sertifikat, status}]
+        let targetHapus = null; // id yang mau dihapus
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const loginError = document.getElementById('loginError');
+
+            loginBtn.disabled = true;
+            loginBtn.innerText = 'Memeriksa...';
+            loginError.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    document.getElementById('loginSection').classList.add('hidden');
+                    document.getElementById('adminDashboard').classList.remove('hidden');
+                    ambilDataSistem();
+                } else {
+                    loginError.innerText = data.message || 'Username atau Password Salah';
+                    loginError.classList.remove('hidden');
+                }
+            } catch (err) {
+                loginError.innerText = 'Tidak bisa terhubung ke server backend. Pastikan server.js sedang berjalan dan API_BASE_URL sudah benar.';
+                loginError.classList.remove('hidden');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerText = 'Masuk Sistem';
+            }
+        });
+
+        async function ambilDataSistem() {
+            const connError = document.getElementById('connError');
+            connError.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/sertifikat`);
+                if (!res.ok) throw new Error('Gagal memuat data dari server (status ' + res.status + ')');
+                listSertifikatGlobal = await res.json();
+
+                const namaUnik = new Set(listSertifikatGlobal.map(x => x.nama));
+                document.getElementById('totalSubmisi').innerText = namaUnik.size;
+                document.getElementById('totalData').innerText = listSertifikatGlobal.length;
+
+                renderKartuDashboard(listSertifikatGlobal);
+            } catch (err) {
+                connError.innerText = 'Gagal mengambil data: ' + err.message + '. Pastikan server backend (server.js) berjalan dan bisa diakses.';
+                connError.classList.remove('hidden');
+            }
+        }
+
+        function badgeStatus(status) {
+            if (status === 'pending') return '<span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Pending</span>';
+            if (status === 'approved') return '<span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Approved</span>';
+            return '<span class="text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">Rejected</span>';
+        }
+
+        function renderKartuDashboard(dataArray) {
+            const pendingList = document.getElementById('pending-list');
+            const approvedList = document.getElementById('approved-list');
+            const rejectedList = document.getElementById('rejected-list');
+
+            pendingList.innerHTML = '';
+            approvedList.innerHTML = '';
+            rejectedList.innerHTML = '';
+
+            dataArray.forEach(item => {
+                const status = item.status || 'pending';
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-lg border border-slate-200 space-y-3 shadow-sm hover:shadow-md transition";
+
+                let tombolApprove = '';
+                let tombolReject = '';
+
+                if (status !== 'approved') {
+                    tombolApprove = `<button onclick="gantiStatusBerkas(${item.id}, 'approved')" class="flex-1 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 text-[11px] font-bold py-2 px-2 rounded-lg transition cursor-pointer uppercase tracking-wider">Setujui</button>`;
+                }
+                if (status !== 'rejected') {
+                    tombolReject = `<button onclick="gantiStatusBerkas(${item.id}, 'rejected')" class="flex-1 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 text-[11px] font-bold py-2 px-2 rounded-lg transition cursor-pointer uppercase tracking-wider">Tolak</button>`;
+                }
+
+                const tombolHapus = `<button onclick="mintaHapus(${item.id})" class="w-full bg-slate-50 hover:bg-slate-700 text-slate-500 hover:text-white border border-slate-200 text-[11px] font-bold py-2 px-2 rounded-lg transition cursor-pointer uppercase tracking-wider flex items-center justify-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    Hapus
+                </button>`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">${item.nama}</h4>
+                            <p class="text-[11px] text-slate-400 font-medium">Divisi: ${item.divisi || '-'} &middot; Pangkat: ${item.pangkat}</p>
+                        </div>
+                        ${badgeStatus(status)}
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                        <p class="text-xs text-slate-600 font-semibold">Kualifikasi: ${item.brevet}</p>
+                    </div>
+                    <div class="flex justify-between items-center text-[11px]">
+                        <button onclick="bukaModal(${item.id})" class="text-blue-600 font-bold hover:text-blue-700 cursor-pointer flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            Pratinjau Berkas
+                        </button>
+                    </div>
+                    <div class="flex gap-2 pt-1">
+                        ${tombolApprove}
+                        ${tombolReject}
+                    </div>
+                    ${tombolHapus}
+                `;
+
+                if (status === 'pending') pendingList.appendChild(card);
+                if (status === 'approved') approvedList.appendChild(card);
+                if (status === 'rejected') rejectedList.appendChild(card);
+            });
+
+            if (pendingList.innerHTML === '') pendingList.innerHTML = '<p class="text-xs text-slate-400 text-center pt-10">Tidak ada data.</p>';
+            if (approvedList.innerHTML === '') approvedList.innerHTML = '<p class="text-xs text-slate-400 text-center pt-10">Tidak ada data.</p>';
+            if (rejectedList.innerHTML === '') rejectedList.innerHTML = '<p class="text-xs text-slate-400 text-center pt-10">Tidak ada data.</p>';
+        }
+
+        function filterData() {
+            const keyword = document.getElementById('searchAdmin').value.toLowerCase();
+            const hasilFilter = listSertifikatGlobal.filter(item =>
+                item.nama.toLowerCase().includes(keyword) ||
+                (item.divisi || '').toLowerCase().includes(keyword) ||
+                item.brevet.toLowerCase().includes(keyword)
+            );
+            renderKartuDashboard(hasilFilter);
+        }
+
+        async function gantiStatusBerkas(id, statusBaru) {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/update-status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, status: statusBaru })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Gagal memperbarui status');
+                ambilDataSistem();
+            } catch (err) {
+                alert('Gagal memperbarui status: ' + err.message);
+            }
+        }
+
+        // ==== HAPUS ITEM BREVET ====
+        function mintaHapus(id) {
+            targetHapus = id;
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function tutupModalHapus() {
+            targetHapus = null;
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        async function konfirmasiHapus() {
+            if (!targetHapus) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/sertifikat/${targetHapus}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Gagal menghapus data');
+                tutupModalHapus();
+                ambilDataSistem();
+            } catch (err) {
+                tutupModalHapus();
+                alert('Gagal menghapus data: ' + err.message);
+            }
+        }
+
+        function bukaModal(id) {
+            const item = listSertifikatGlobal.find(x => x.id === id);
+            if (item && item.file_sertifikat) {
+                document.getElementById('modalImg').src = item.file_sertifikat;
+                document.getElementById('photoModal').classList.remove('hidden');
+            }
+        }
+
+        function tutupModal() {
+            document.getElementById('photoModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
