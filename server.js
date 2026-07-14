@@ -1,11 +1,18 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const bodyParser = require('body-parser');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
-const db = new sqlite3.Database('./database.db');
-const cors = require('cors');
+
+// Koneksi ke Postgres pakai DATABASE_URL yang otomatis disediakan Railway
+// (pastikan variabel DATABASE_URL sudah di-Reference ke service Postgres kamu)
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
 app.use(cors()); // Mengizinkan Netlify / domain lain mengakses backend ini
 
 // Mengatur batas ukuran data agar bisa menerima file gambar berukuran besar
@@ -13,10 +20,10 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Inisialisasi Database dengan kolom teks khusus penyimpan file gambar (Base64)
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS sertifikat (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+// Inisialisasi Database
+async function initDb() {
+    await pool.query(`CREATE TABLE IF NOT EXISTS sertifikat (
+        id SERIAL PRIMARY KEY,
         nama TEXT,
         divisi TEXT,
         pangkat TEXT,
@@ -25,23 +32,7 @@ db.serialize(() => {
         status TEXT DEFAULT 'pending'
     )`);
 
-    // Migrasi otomatis: kalau tabel lama belum punya kolom "divisi", tambahkan.
-    // (SQLite tidak punya "ADD COLUMN IF NOT EXISTS", jadi kita cek dulu manual)
-    db.all(`PRAGMA table_info(sertifikat)`, [], (err, columns) => {
-        if (err) return console.error('Gagal cek struktur tabel:', err.message);
-        const adaKolomDivisi = columns.some(c => c.name === 'divisi');
-        if (!adaKolomDivisi) {
-            db.run(`ALTER TABLE sertifikat ADD COLUMN divisi TEXT`, (errAlter) => {
-                if (errAlter) console.error('Gagal migrasi kolom divisi:', errAlter.message);
-                else console.log('Migrasi: kolom "divisi" berhasil ditambahkan ke tabel sertifikat');
-            });
-        }
-    });
-
-    // Tabel "anggota" = SUMBER TUNGGAL untuk data pangkat & divisi seseorang.
-    // Ini memperbaiki bug: dulu pangkat disimpan per-baris-brevet, jadi kartu
-    // bisa menampilkan pangkat lama yang sudah tidak berlaku.
-    db.run(`CREATE TABLE IF NOT EXISTS anggota (
+    await pool.query(`CREATE TABLE IF NOT EXISTS anggota (
         nama TEXT PRIMARY KEY,
         divisi TEXT,
         pangkat TEXT
@@ -49,13 +40,15 @@ db.serialize(() => {
 
     // Migrasi data lama: isi tabel anggota dari data sertifikat yang sudah ada,
     // pakai baris dengan id TERBESAR (pengajuan terbaru) per nama sebagai acuan.
-    db.run(`INSERT OR IGNORE INTO anggota (nama, divisi, pangkat)
+    await pool.query(`INSERT INTO anggota (nama, divisi, pangkat)
             SELECT nama, divisi, pangkat FROM sertifikat s1
-            WHERE s1.id = (SELECT MAX(s2.id) FROM sertifikat s2 WHERE s2.nama = s1.nama)`,
-        (errMigrasi) => {
-            if (errMigrasi) console.error('Gagal migrasi data ke tabel anggota:', errMigrasi.message);
-        });
-});
+            WHERE s1.id = (SELECT MAX(s2.id) FROM sertifikat s2 WHERE s2.nama = s1.nama)
+            ON CONFLICT (nama) DO NOTHING`);
+
+    console.log('Database Postgres siap digunakan');
+}
+
+initDb().catch(err => console.error('Gagal inisialisasi database:', err.message));
 
 // Routing Halaman Utama
 app.get('/', (req, res) => {
@@ -78,41 +71,45 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 // API: Memuat Seluruh Data Sertifikat
-app.get('/api/sertifikat', (req, res) => {
-    db.all('SELECT * FROM sertifikat ORDER BY id DESC', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+app.get('/api/sertifikat', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sertifikat ORDER BY id DESC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// API: Proses Ajukan Berkas dari Customer (Metode Base64 yang Stabil)
-app.post('/api/upload', (req, res) => {
+// API: Proses Ajukan Berkas dari Customer
+app.post('/api/upload', async (req, res) => {
     const { nama, divisi, pangkat, brevet, file_sertifikat } = req.body;
 
     if (!nama || !pangkat || !brevet || !file_sertifikat) {
         return res.status(400).json({ error: "Semua formulir dan data berkas wajib diisi lengkap" });
     }
 
-    // Perbarui/insert data anggota (nama, divisi, pangkat) dengan nilai TERBARU
-    // dari formulir ini. Ini yang membuat pangkat di kartu selalu up-to-date
-    // begitu anggota mengajukan brevet baru dengan pangkat barunya.
-    db.run(`INSERT INTO anggota (nama, divisi, pangkat) VALUES (?, ?, ?)
-            ON CONFLICT(nama) DO UPDATE SET divisi = excluded.divisi, pangkat = excluded.pangkat`,
-        [nama, divisi || '-', pangkat], (errAnggota) => {
-            if (errAnggota) console.error('Gagal update data anggota:', errAnggota.message);
-        });
+    try {
+        // Perbarui/insert data anggota (nama, divisi, pangkat) dengan nilai TERBARU
+        await pool.query(
+            `INSERT INTO anggota (nama, divisi, pangkat) VALUES ($1, $2, $3)
+             ON CONFLICT (nama) DO UPDATE SET divisi = excluded.divisi, pangkat = excluded.pangkat`,
+            [nama, divisi || '-', pangkat]
+        );
 
-    db.run(`INSERT INTO sertifikat (nama, divisi, pangkat, brevet, file_sertifikat, status) VALUES (?, ?, ?, ?, ?, 'pending')`,
-    [nama, divisi || '-', pangkat, brevet, file_sertifikat], function(err) {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        res.json({ id: this.lastID, message: "Pengajuan berhasil dikirim" });
-    });
+        const result = await pool.query(
+            `INSERT INTO sertifikat (nama, divisi, pangkat, brevet, file_sertifikat, status)
+             VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING id`,
+            [nama, divisi || '-', pangkat, brevet, file_sertifikat]
+        );
+
+        res.json({ id: result.rows[0].id, message: "Pengajuan berhasil dikirim" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // API: Perbarui Status Verifikasi Dokumen (Setujui / Tolak)
-app.post('/api/update-status', (req, res) => {
+app.post('/api/update-status', async (req, res) => {
     const { id, status } = req.body;
 
     if (!id || !status) {
@@ -122,68 +119,81 @@ app.post('/api/update-status', (req, res) => {
         return res.status(400).json({ error: "Nilai status tidak valid" });
     }
 
-    db.run(`UPDATE sertifikat SET status = ? WHERE id = ?`, [status, id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: "Data dengan id tersebut tidak ditemukan" });
+    try {
+        const result = await pool.query('UPDATE sertifikat SET status = $1 WHERE id = $2', [status, id]);
+        if (result.rowCount === 0) return res.status(404).json({ error: "Data dengan id tersebut tidak ditemukan" });
         res.json({ success: true, message: "Status berkas berhasil diperbarui" });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // API: Ambil Daftar Seluruh Anggota (data pangkat/divisi terkini)
-app.get('/api/anggota', (req, res) => {
-    db.all(`SELECT * FROM anggota ORDER BY nama ASC`, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+app.get('/api/anggota', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM anggota ORDER BY nama ASC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // API: Admin update manual pangkat/divisi seorang anggota (mis. kenaikan pangkat)
-app.post('/api/admin/update-anggota', (req, res) => {
+app.post('/api/admin/update-anggota', async (req, res) => {
     const { nama, divisi, pangkat } = req.body;
     if (!nama || !pangkat) {
         return res.status(400).json({ error: "Nama dan pangkat wajib diisi" });
     }
-    db.run(`INSERT INTO anggota (nama, divisi, pangkat) VALUES (?, ?, ?)
-            ON CONFLICT(nama) DO UPDATE SET divisi = excluded.divisi, pangkat = excluded.pangkat`,
-        [nama, divisi || '-', pangkat], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, message: "Data anggota berhasil diperbarui" });
-        });
+
+    try {
+        await pool.query(
+            `INSERT INTO anggota (nama, divisi, pangkat) VALUES ($1, $2, $3)
+             ON CONFLICT (nama) DO UPDATE SET divisi = excluded.divisi, pangkat = excluded.pangkat`,
+            [nama, divisi || '-', pangkat]
+        );
+        res.json({ success: true, message: "Data anggota berhasil diperbarui" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // API: Hapus Satu Item Pengajuan Brevet
-app.delete('/api/sertifikat/:id', (req, res) => {
+app.delete('/api/sertifikat/:id', async (req, res) => {
     const { id } = req.params;
 
-    db.run(`DELETE FROM sertifikat WHERE id = ?`, [id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: "Data dengan id tersebut tidak ditemukan" });
+    try {
+        const result = await pool.query('DELETE FROM sertifikat WHERE id = $1', [id]);
+        if (result.rowCount === 0) return res.status(404).json({ error: "Data dengan id tersebut tidak ditemukan" });
         res.json({ success: true, message: "Data berhasil dihapus" });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // API: Validasi dan Pembuatan Kartu Kemeja Anggota
-app.get('/api/kartu/:nama', (req, res) => {
+app.get('/api/kartu/:nama', async (req, res) => {
     const namaUser = req.params.nama;
 
-    // Pangkat & divisi SELALU diambil dari tabel anggota (data terbaru/terkini),
-    // bukan dari baris brevet, supaya kenaikan pangkat langsung tercermin di kartu.
-    db.get(`SELECT nama, divisi, pangkat FROM anggota WHERE nama = ?`, [namaUser], (errAnggota, anggotaRow) => {
-        if (errAnggota) return res.status(500).json({ error: errAnggota.message });
+    try {
+        const anggotaResult = await pool.query('SELECT nama, divisi, pangkat FROM anggota WHERE nama = $1', [namaUser]);
+        const anggotaRow = anggotaResult.rows[0];
         if (!anggotaRow) return res.status(404).json({ error: "Anggota tidak ditemukan" });
 
-        db.all(`SELECT brevet FROM sertifikat WHERE nama = ? AND status = 'approved'`, [namaUser], (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
+        const sertifikatResult = await pool.query(
+            `SELECT brevet FROM sertifikat WHERE nama = $1 AND status = 'approved'`,
+            [namaUser]
+        );
 
-            const kartu = {
-                nama: anggotaRow.nama,
-                divisi: anggotaRow.divisi,
-                pangkat: anggotaRow.pangkat,
-                brevets: rows.map(r => r.brevet)
-            };
-            res.json(kartu);
-        });
-    });
+        const kartu = {
+            nama: anggotaRow.nama,
+            divisi: anggotaRow.divisi,
+            pangkat: anggotaRow.pangkat,
+            brevets: sertifikatResult.rows.map(r => r.brevet)
+        };
+        res.json(kartu);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
