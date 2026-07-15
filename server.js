@@ -48,7 +48,10 @@ async function initDb() {
     console.log('Database Postgres siap digunakan');
 }
 
-initDb().catch(err => console.error('Gagal inisialisasi database:', err.message));
+initDb().catch(err => {
+    console.error('Gagal inisialisasi database:', err);
+    console.error('DATABASE_URL ada?', !!process.env.DATABASE_URL);
+});
 
 // Routing Halaman Utama
 app.get('/', (req, res) => {
